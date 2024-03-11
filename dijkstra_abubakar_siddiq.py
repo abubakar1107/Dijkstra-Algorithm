@@ -38,6 +38,14 @@ def create_map():
                             inflated_grid[y + dy, x + dx] = -1
     return inflated_grid
 
+
+def validate_goal(grid, goal):
+    if grid[goal[1], goal[0]] == -1:  # Assuming grid[y, x] == -1 indicates an obstacle
+
+        print("------------------------------- \n Goal Position Not reachable\n ---------------------------------")
+        raise ValueError("Goal position Not reachable: It is within an obstacle space.")
+
+
 def dijkstra(grid, start, goal):
     open_set = []
     heapq.heappush(open_set, (0, start))
@@ -73,28 +81,34 @@ def reconstruct_path(came_from, start, goal):
     path.reverse()
     return path
 
+exploration_step_size = 10  # Increase this number to show more nodes per frame and speed up the animation
+
+# Function to animate the exploration and the path
 def animate(i):
-    # Plotting the explored nodes
-    if i < len(exploration):
-        node = exploration[i]
+    for node in exploration[i * exploration_step_size:(i + 1) * exploration_step_size]:
         plt.plot(node[0], node[1], 'yo', markersize=2)
-    # Plotting the path
-    elif i == len(exploration):
+    if (i + 1) * exploration_step_size >= len(exploration):
         for node in path:
             plt.plot(node[0], node[1], 'ro', markersize=2)
+        ani.event_source.stop()  # Stop the animation once the path is fully drawn
 
 # Create the map with obstacles and clearance
 grid = create_map()
+
 
 # Define start and goal positions
 start = (5, 5)
 goal = (100, 60)
 
+validate_goal(grid, goal)
 # Run Dijkstra's algorithm
 came_from, cost_so_far, exploration = dijkstra(grid, start, goal)
+total_frames = len(exploration) // exploration_step_size + 1
+
 
 # Reconstruct the path from start to goal
 path = reconstruct_path(came_from, start, goal)
+print("Solution path: ",path)
 
 # Create the base plot
 fig, ax = plt.subplots()
@@ -103,5 +117,6 @@ ax.plot(start[0], start[1], 'go', markersize=10)  # Start in green
 ax.plot(goal[0], goal[1], 'bo', markersize=10)    # Goal in blue
 
 # Run the animation
-ani = FuncAnimation(fig, animate, frames=len(exploration) + 1, interval=50)
+ani = FuncAnimation(fig, animate, frames=total_frames, interval=50, repeat=False)
+
 plt.show()
