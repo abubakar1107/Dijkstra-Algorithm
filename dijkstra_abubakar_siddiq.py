@@ -2,24 +2,15 @@ import numpy as np
 import heapq
 import matplotlib.pyplot as plt
 from matplotlib import colors
+from matplotlib.animation import FuncAnimation
 
-# Map size
+# Define the map and its dimensions
 map_width, map_height = 200, 100
-
-# Initialize the grid, 0 is free space, -1 is obstacle
 grid = np.zeros((map_height, map_width))
 
-# Define the actions with their cost
-actions = {
-    (0, -1): 1,  # UP
-    (0, 1): 1,   # DOWN
-    (-1, 0): 1,  # LEFT
-    (1, 0): 1,   # RIGHT
-    (-1, -1): 1.4,  # UP-LEFT
-    (1, -1): 1.4,   # UP-RIGHT
-    (-1, 1): 1.4,   # DOWN-LEFT
-    (1, 1): 1.4    # DOWN-RIGHT
-}
+# Define the actions and their costs
+actions = [(0, -1, 1), (0, 1, 1), (-1, 0, 1), (1, 0, 1),
+           (-1, -1, 1.4), (1, -1, 1.4), (-1, 1, 1.4), (1, 1, 1.4)]
 
 def create_map():
     clearance = 5  # 5 mm clearance
@@ -52,6 +43,7 @@ def dijkstra(grid, start, goal):
     heapq.heappush(open_set, (0, start))
     came_from = {}
     cost_so_far = {start: 0}
+    exploration = [start]  # List to keep track of exploration order
 
     while open_set:
         current_cost, current_node = heapq.heappop(open_set)
@@ -59,17 +51,18 @@ def dijkstra(grid, start, goal):
         if current_node == goal:
             break
 
-        for action, cost in actions.items():
-            next_node = (current_node[0] + action[0], current_node[1] + action[1])
+        for dx, dy, action_cost in actions:
+            next_node = (current_node[0] + dx, current_node[1] + dy)
             if 0 <= next_node[0] < map_width and 0 <= next_node[1] < map_height and grid[next_node[1], next_node[0]] == 0:
-                new_cost = current_cost + cost
+                new_cost = current_cost + action_cost
                 if next_node not in cost_so_far or new_cost < cost_so_far[next_node]:
                     cost_so_far[next_node] = new_cost
                     priority = new_cost
                     heapq.heappush(open_set, (priority, next_node))
                     came_from[next_node] = current_node
+                    exploration.append(next_node)  # Add node to exploration list
 
-    return came_from, cost_so_far
+    return came_from, cost_so_far, exploration
 
 def reconstruct_path(came_from, start, goal):
     current = goal
@@ -80,33 +73,35 @@ def reconstruct_path(came_from, start, goal):
     path.reverse()
     return path
 
-def visualize_path(grid, path):
-    # Create a color map where free space is white and obstacles are black
-    cmap = colors.ListedColormap(['white', 'black'])
-    # Create a matrix to represent the grid for visualization
-    grid_vis = np.zeros_like(grid)
-    grid_vis[grid == -1] = 1  # Mark obstacles as black
-    # Plot the grid
-    plt.imshow(grid_vis, cmap=cmap, origin='lower')
-    # Extract x and y coordinates from the path
-    x_coords, y_coords = zip(*path)
-    # Plot the path
-    plt.plot(x_coords, y_coords, color='red')
-    # Show the plot
-    plt.show()
+def animate(i):
+    # Plotting the explored nodes
+    if i < len(exploration):
+        node = exploration[i]
+        plt.plot(node[0], node[1], 'yo', markersize=2)
+    # Plotting the path
+    elif i == len(exploration):
+        for node in path:
+            plt.plot(node[0], node[1], 'ro', markersize=2)
 
-# Use the create_map function to initialize the grid with obstacles and clearance
+# Create the map with obstacles and clearance
 grid = create_map()
 
-# Define the start and goal positions
-start = (5, 5)  # Start should be a tuple (x, y)
-goal = (190, 60)  # Goal should be a tuple (x, y)
+# Define start and goal positions
+start = (5, 5)
+goal = (100, 60)
 
 # Run Dijkstra's algorithm
-came_from, cost_so_far = dijkstra(grid, start, goal)
+came_from, cost_so_far, exploration = dijkstra(grid, start, goal)
 
-# Reconstruct the path
+# Reconstruct the path from start to goal
 path = reconstruct_path(came_from, start, goal)
 
-# Visualize the path
-visualize_path(grid, path)
+# Create the base plot
+fig, ax = plt.subplots()
+ax.imshow(grid, cmap=colors.ListedColormap(['white', 'black']), interpolation='none', origin='lower')
+ax.plot(start[0], start[1], 'go', markersize=10)  # Start in green
+ax.plot(goal[0], goal[1], 'bo', markersize=10)    # Goal in blue
+
+# Run the animation
+ani = FuncAnimation(fig, animate, frames=len(exploration) + 1, interval=50)
+plt.show()
